@@ -1,0 +1,27 @@
+{
+  "name": "smoothradio",
+  "version": "0.1.0",
+  "description": "Streaming using AI",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": [
+    "radio",
+    "streaming",
+    "ai",
+    "mp3"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "music-metadata": "^10.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
