@@ -6,6 +6,7 @@ import json
 import logging
 
 import anthropic
+import pydantic
 
 from .config import settings
 from .models import Genre, Mood, Track, TrackCategory, TrackMetadata
@@ -75,8 +76,9 @@ class Categorizer:
             )
             content = response.content[0].text
             data = json.loads(content)
-            return TrackCategory(**data)
-        except (json.JSONDecodeError, anthropic.APIError) as exc:
+            category = TrackCategory(**data)
+            return _sanitize_category(category)
+        except (json.JSONDecodeError, anthropic.APIError, pydantic.ValidationError) as exc:
             logger.error("AI categorization failed for %s: %s", track.id, exc)
             return _fallback_categorization(metadata)
 
@@ -87,6 +89,19 @@ class Categorizer:
             category = await self.categorize_track(track)
             results.append(category)
         return results
+
+
+def _sanitize_irc_string(value: str) -> str:
+    """Strip leading slashes to prevent IRC command injection."""
+    return value.lstrip("/")
+
+
+def _sanitize_category(category: TrackCategory) -> TrackCategory:
+    """Sanitize AI-generated category fields to prevent IRC command injection."""
+    category.description = _sanitize_irc_string(category.description)
+    category.tags = [_sanitize_irc_string(tag) for tag in category.tags]
+    category.sub_genre = _sanitize_irc_string(category.sub_genre)
+    return category
 
 
 def _fallback_categorization(metadata: TrackMetadata) -> TrackCategory:

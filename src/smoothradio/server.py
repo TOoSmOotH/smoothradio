@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Security
 from fastapi.responses import StreamingResponse
+from fastapi.security import APIKeyHeader
 
 from .categorizer import Categorizer
 from .config import settings
@@ -15,6 +16,23 @@ from .models import CategoryFilter, Genre, Mood, TrackCategory
 from .streamer import StreamEngine
 
 logger = logging.getLogger(__name__)
+
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def require_admin_key(
+    api_key: str | None = Security(_api_key_header),
+) -> str:
+    """Validate admin API key for protected endpoints."""
+    if not settings.admin_api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin API key not configured on server",
+        )
+    if not api_key or api_key != settings.admin_api_key:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key")
+    return api_key
+
 
 categorizer = Categorizer()
 library = TrackLibrary(media_dir=settings.media_dir, categorizer=categorizer)
@@ -81,12 +99,12 @@ async def get_track(track_id: str):
         raise HTTPException(status_code=404, detail="Track not found")
     return {
         "id": track.id,
-        "metadata": track.metadata.model_dump(),
+        "metadata": track.metadata.model_dump(exclude={"file_path"}),
         "category": track.category.model_dump() if track.category else None,
     }
 
 
-@app.post("/api/tracks/{track_id}/categorize")
+@app.post("/api/tracks/{track_id}/categorize", dependencies=[Depends(require_admin_key)])
 async def categorize_track(track_id: str):
     """Trigger AI categorization for a specific track."""
     category = await library.categorize_track(track_id)
@@ -95,7 +113,7 @@ async def categorize_track(track_id: str):
     return {"track_id": track_id, "category": category.model_dump()}
 
 
-@app.post("/api/categorize")
+@app.post("/api/categorize", dependencies=[Depends(require_admin_key)])
 async def categorize_all():
     """Run AI categorization on all uncategorized tracks."""
     count = await library.categorize_uncategorized(
@@ -126,7 +144,7 @@ async def library_stats():
     }
 
 
-@app.post("/api/library/scan")
+@app.post("/api/library/scan", dependencies=[Depends(require_admin_key)])
 async def rescan_library():
     """Rescan the media directory for new tracks."""
     count = library.scan()
