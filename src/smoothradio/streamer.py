@@ -17,14 +17,25 @@ from .models import CategoryFilter, Genre, Mood, StreamSession, Track
 logger = logging.getLogger(__name__)
 
 
+class SessionLimitExceeded(RuntimeError):
+    """Raised when the stream engine has reached its concurrency cap."""
+
+
 class StreamEngine:
     """Streams audio to listeners, using AI categorization to select tracks."""
 
-    def __init__(self, library: TrackLibrary):
+    def __init__(self, library: TrackLibrary, max_sessions: int | None = None):
         self._library = library
         self._sessions: dict[str, StreamSession] = {}
         self._current_track: Track | None = None
         self._chunk_size = settings.stream_chunk_size
+        self._max_sessions = (
+            max_sessions if max_sessions is not None else settings.max_stream_sessions
+        )
+
+    @property
+    def active_sessions(self) -> int:
+        return len(self._sessions)
 
     def create_session(
         self,
@@ -32,7 +43,16 @@ class StreamEngine:
         moods: list[Mood] | None = None,
         energy_range: tuple[float, float] = (0.0, 1.0),
     ) -> StreamSession:
-        """Create a new listener session with preferences."""
+        """Create a new listener session with preferences.
+
+        Raises SessionLimitExceeded once max_stream_sessions concurrent
+        listeners are active, so a burst of /stream connections cannot
+        exhaust memory by growing the session dict without bound.
+        """
+        if self._max_sessions > 0 and len(self._sessions) >= self._max_sessions:
+            raise SessionLimitExceeded(
+                f"Server at capacity ({self._max_sessions} concurrent sessions)"
+            )
         session = StreamSession(
             session_id=uuid.uuid4().hex,
             preferred_genres=genres or [],

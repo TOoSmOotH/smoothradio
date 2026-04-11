@@ -9,20 +9,22 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
-    # Media library path
     media_dir: str = "./media"
 
-    # AI categorization
-    anthropic_api_key: str = ""
-    categorization_model: str = "claude-sonnet-4-20250514"
+    # AI categorization via OpenAI-compatible endpoint
+    # (works with OpenAI, Ollama, vLLM, LM Studio, LiteLLM, etc.)
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    categorization_model: str = "gpt-4o-mini"
     categorization_batch_size: int = 10
+    categorization_timeout_seconds: float = 30.0
+    categorization_max_tokens: int = 512
 
-    # Admin API key for protected endpoints (categorization, library scan)
     admin_api_key: str = ""
 
-    # Streaming
     stream_chunk_size: int = 8192
     stream_buffer_seconds: int = 5
+    max_stream_sessions: int = 100
 
     model_config = {"env_prefix": "SMOOTHRADIO_"}
 

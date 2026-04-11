@@ -46,6 +46,7 @@ class TrackMetadata(BaseModel):
     title: str = "Unknown"
     artist: str = "Unknown"
     album: str = "Unknown"
+    year: int | None = None
     duration_seconds: float = 0.0
     bitrate: int = 0
     sample_rate: int = 0
@@ -57,6 +58,10 @@ class TrackCategory(BaseModel):
 
     genre: Genre
     sub_genre: str = ""
+    decade: int | None = Field(
+        default=None,
+        description="Release decade bucket (e.g. 1980, 1990, 2000).",
+    )
     moods: list[Mood] = Field(default_factory=list)
     energy_level: float = Field(ge=0.0, le=1.0, description="0=calm, 1=high energy")
     tags: list[str] = Field(default_factory=list)

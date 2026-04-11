@@ -13,7 +13,7 @@ from .categorizer import Categorizer
 from .config import settings
 from .library import TrackLibrary
 from .models import CategoryFilter, Genre, Mood, TrackCategory
-from .streamer import StreamEngine
+from .streamer import SessionLimitExceeded, StreamEngine
 
 logger = logging.getLogger(__name__)
 
@@ -167,11 +167,18 @@ async def stream_radio(
     The server selects tracks based on their AI categorization matching
     the requested genre, mood, and energy level.
     """
-    session = stream_engine.create_session(
-        genres=[genre] if genre else None,
-        moods=[mood] if mood else None,
-        energy_range=(min_energy, max_energy),
-    )
+    try:
+        session = stream_engine.create_session(
+            genres=[genre] if genre else None,
+            moods=[mood] if mood else None,
+            energy_range=(min_energy, max_energy),
+        )
+    except SessionLimitExceeded as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+            headers={"Retry-After": "30"},
+        ) from exc
 
     async def generate():
         try:

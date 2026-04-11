@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from pathlib import Path
 
 from mutagen import File as MutagenFile
@@ -38,6 +39,7 @@ def extract_metadata(file_path: Path) -> TrackMetadata | None:
         title = _get_tag(audio, file_path)
         artist = _get_artist(audio)
         album = _get_album(audio)
+        year = _get_year(audio)
         duration = audio.info.length if audio.info else 0.0
         bitrate = getattr(audio.info, "bitrate", 0) if audio.info else 0
         sample_rate = getattr(audio.info, "sample_rate", 0) if audio.info else 0
@@ -47,6 +49,7 @@ def extract_metadata(file_path: Path) -> TrackMetadata | None:
             title=title,
             artist=artist,
             album=album,
+            year=year,
             duration_seconds=duration,
             bitrate=bitrate,
             sample_rate=sample_rate,
@@ -101,3 +104,33 @@ def _get_album(audio: MutagenFile) -> str:
         if "album" in audio:
             return str(audio["album"][0])
     return "Unknown"
+
+
+def _get_year(audio: MutagenFile) -> int | None:
+    """Extract a 4-digit release year from whichever tag the format uses."""
+    raw: str | None = None
+    if isinstance(audio, MP3):
+        tags = audio.tags
+        if tags:
+            for key in ("TDRC", "TDRL", "TDOR", "TYER"):
+                if key in tags:
+                    raw = str(tags[key])
+                    break
+    elif isinstance(audio, MP4):
+        if "\xa9day" in audio:
+            raw = str(audio["\xa9day"][0])
+    elif isinstance(audio, (FLAC, OggVorbis)):
+        for key in ("date", "year", "originaldate"):
+            if key in audio:
+                raw = str(audio[key][0])
+                break
+
+    if not raw:
+        return None
+    match = re.search(r"(19|20)\d{2}", raw)
+    if not match:
+        return None
+    try:
+        return int(match.group(0))
+    except ValueError:
+        return None
