@@ -92,6 +92,28 @@ class MetadataDBTests(unittest.TestCase):
             self.assertIsNone(db.get_bucket("b.txt"))
             self.assertIsNone(db.get_bucket("c.txt"))
 
+    def test_set_many_with_only_empty_values_is_noop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = MetadataDB(Path(tmp) / "metadata.db")
+            db.set_bucket("seed.txt", "seed")
+
+            db.set_many([("drop.txt", ""), ("none.txt", None)])  # type: ignore[list-item]
+
+            self.assertEqual(db.count(), 1)
+            self.assertEqual(db.get_bucket("seed.txt"), "seed")
+            self.assertIsNone(db.get_bucket("drop.txt"))
+
+    def test_all_buckets_returns_normalized_absolute_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db = MetadataDB(Path(tmp) / "metadata.db")
+            db.set_many([("alpha.txt", "a"), ("beta.txt", "b")])
+
+            expected = {
+                str(Path("alpha.txt").resolve()): "a",
+                str(Path("beta.txt").resolve()): "b",
+            }
+            self.assertEqual(db.all_buckets(), expected)
+
     def test_delete_returns_true_only_when_row_is_deleted(self):
         with tempfile.TemporaryDirectory() as tmp:
             db = MetadataDB(Path(tmp) / "metadata.db")
