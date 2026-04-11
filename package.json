@@ -8,6 +8,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "music-metadata": "^10.0.0"
+    "music-metadata": "^11.12.3"
   }
 }
