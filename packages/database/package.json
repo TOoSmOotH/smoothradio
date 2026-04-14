@@ -1,0 +1,17 @@
+{
+  "name": "@smoothradio/database",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "pg": "^8.11.0",
+    "drizzle-orm": "^0.30.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/pg": "^8.11.0"
+  }
+}

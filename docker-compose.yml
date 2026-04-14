@@ -1,0 +1,90 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: music_server
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - smoothradio_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d music_server"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  valkey:
+    image: valkey/valkey:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - valkeydata:/data
+    networks:
+      - smoothradio_net
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgres://user:password@db:5432/music_server
+      - VALKEY_URL=redis://valkey:6379
+      - SECRET_STORE_KEY=${SECRET_STORE_KEY:-default-secret-key}
+    networks:
+      - smoothradio_net
+    depends_on:
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      - DATABASE_URL=postgres://user:password@db:5432/music_server
+      - VALKEY_URL=redis://valkey:6379
+      - SECRET_STORE_KEY=${SECRET_STORE_KEY:-default-secret-key}
+    networks:
+      - smoothradio_net
+    depends_on:
+      db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    restart: unless-stopped
+
+  admin-ui:
+    build:
+      context: .
+      dockerfile: apps/admin-ui/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    networks:
+      - smoothradio_net
+    depends_on:
+      - api
+    restart: unless-stopped
+
+networks:
+  smoothradio_net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  valkeydata:
