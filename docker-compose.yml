@@ -2,17 +2,17 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: music_server
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_DB}
     ports:
-      - "5432:5432"
+      - "${DATABASE_PORT}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ${DATABASE_DATA_PATH}:/var/lib/postgresql/data
     networks:
       - smoothradio_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d music_server"]
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -20,9 +20,9 @@ services:
   valkey:
     image: valkey/valkey:latest
     ports:
-      - "6379:6379"
+      - "${VALKEY_PORT}:6379"
     volumes:
-      - valkeydata:/data
+      - ${VALKEY_DATA_PATH}:/data
     networks:
       - smoothradio_net
     healthcheck:
@@ -36,11 +36,14 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     ports:
-      - "3000:3000"
+      - "${PORT}:3000"
     environment:
-      - DATABASE_URL=postgres://user:password@db:5432/music_server
+      - DATABASE_URL=postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/${DATABASE_DB}
       - VALKEY_URL=redis://valkey:6379
-      - SECRET_STORE_KEY=${SECRET_STORE_KEY:-default-secret-key}
+      - SECRET_STORE_KEY=${SECRET_STORE_KEY}
+      - MUSIC_LIBRARY_PATH=${MUSIC_LIBRARY_PATH}
+    volumes:
+      - ${MUSIC_LIBRARY_PATH}:/music:ro
     networks:
       - smoothradio_net
     depends_on:
@@ -55,9 +58,15 @@ services:
       context: .
       dockerfile: apps/worker/Dockerfile
     environment:
-      - DATABASE_URL=postgres://user:password@db:5432/music_server
+      - DATABASE_URL=postgres://${DATABASE_USER}:${DATABASE_PASSWORD}@db:5432/${DATABASE_DB}
       - VALKEY_URL=redis://valkey:6379
-      - SECRET_STORE_KEY=${SECRET_STORE_KEY:-default-secret-key}
+      - SECRET_STORE_KEY=${SECRET_STORE_KEY}
+      - LLM_PROVIDER=${LLM_PROVIDER}
+      - LLM_ENDPOINT=${LLM_ENDPOINT}
+      - LLM_MODEL_NAME=${LLM_MODEL_NAME}
+      - MUSIC_LIBRARY_PATH=${MUSIC_LIBRARY_PATH}
+    volumes:
+      - ${MUSIC_LIBRARY_PATH}:/music:ro
     networks:
       - smoothradio_net
     depends_on:
@@ -72,9 +81,9 @@ services:
       context: .
       dockerfile: apps/admin-ui/Dockerfile
     ports:
-      - "3001:3001"
+      - "${ADMIN_UI_PORT}:3001"
     environment:
-      - VITE_API_URL=http://localhost:3000
+      - VITE_API_URL=${VITE_API_URL}
     networks:
       - smoothradio_net
     depends_on:
@@ -84,7 +93,3 @@ services:
 networks:
   smoothradio_net:
     driver: bridge
-
-volumes:
-  pgdata:
-  valkeydata:
