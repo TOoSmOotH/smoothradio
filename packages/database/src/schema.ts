@@ -31,6 +31,8 @@ export const tracks = pgTable('tracks', {
   year: integer('year'),
   duration: integer('duration'),
   metadata: jsonb('metadata').$type<Record<string, unknown> | null>(),
+  artworkHash: text('artwork_hash'),
+  artworkMimeType: text('artwork_mime_type'),
   isCategorized: boolean('is_categorized').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

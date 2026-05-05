@@ -9,7 +9,9 @@ import path from 'node:path';
 
 import { aiQueue, type ScanJob } from '@smoothradio/shared';
 import { db, tracks } from '@smoothradio/database';
-import { parseID3Tags, type MP3Metadata } from '@smoothradio/shared';
+import { parseID3Tags, extractAlbumArt, AlbumArtCache, type MP3Metadata } from '@smoothradio/shared';
+
+const albumArtCache = new AlbumArtCache(process.env.ALBUM_ART_CACHE_PATH);
 
 export interface ScanSummary {
   rootPath: string;
@@ -63,8 +65,10 @@ export async function processScanJob(job: ScanJob): Promise<ScanSummary> {
   for (const filePath of filePaths) {
     summary.scanned += 1;
     try {
-      const metadata = await parseMetadata(filePath);
-      const track = await upsertTrack(filePath, metadata);
+      const fileBuffer = await readFile(filePath);
+      const metadata = parseID3Tags(fileBuffer);
+      const artResult = await extractAndCacheArt(fileBuffer);
+      const track = await upsertTrack(filePath, metadata, artResult);
 
       if (!track.isCategorized) {
         await aiQueue.add(
@@ -96,14 +100,22 @@ export async function processScanJob(job: ScanJob): Promise<ScanSummary> {
   return summary;
 }
 
-async function parseMetadata(filePath: string): Promise<MP3Metadata> {
-  const bytes = await readFile(filePath);
-  return parseID3Tags(bytes);
+interface ArtResult {
+  hash: string;
+  mimeType: string;
+}
+
+async function extractAndCacheArt(buffer: Buffer): Promise<ArtResult | null> {
+  const art = extractAlbumArt(buffer);
+  if (!art) return null;
+  const cached = await albumArtCache.store(art);
+  return { hash: cached.hash, mimeType: cached.mimeType };
 }
 
 async function upsertTrack(
   filePath: string,
-  metadata: MP3Metadata
+  metadata: MP3Metadata,
+  artResult: ArtResult | null
 ): Promise<{ id: string; isCategorized: boolean }> {
   const now = new Date();
   const values = {
@@ -115,6 +127,8 @@ async function upsertTrack(
     genre: sanitize(metadata.genre),
     year: parseYear(metadata.year),
     duration: metadata.duration,
+    artworkHash: artResult?.hash ?? null,
+    artworkMimeType: artResult?.mimeType ?? null,
     metadata: {
       ...metadata,
       scannedAt: now.toISOString(),
@@ -135,6 +149,8 @@ async function upsertTrack(
         genre: values.genre,
         year: values.year,
         duration: values.duration,
+        artworkHash: values.artworkHash,
+        artworkMimeType: values.artworkMimeType,
         metadata: values.metadata,
         updatedAt: now,
       },

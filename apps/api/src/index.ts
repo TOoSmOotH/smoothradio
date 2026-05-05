@@ -11,6 +11,7 @@ import { SecretStore } from '@smoothradio/crypto';
 import { scanQueue, type ScanJob } from '@smoothradio/shared';
 import { register, login } from './controllers/auth';
 import { streamTrack } from './controllers/stream';
+import { getTrackArtwork } from './controllers/artwork';
 import { trackListeningEvent } from './controllers/events';
 import { getArtistRecommendations } from './controllers/discovery';
 import { createAICuratedPlaylist } from './controllers/playlist';
@@ -55,6 +56,7 @@ app.post('/playlists/curate', authenticate, createAICuratedPlaylist);
 app.get('/discovery/recommendations', authenticate, getArtistRecommendations);
 app.post('/events/listen', authenticate, trackListeningEvent);
 app.get('/stream/:id', authenticate, streamTrack);
+app.get('/tracks/:id/artwork', authenticate, getTrackArtwork);
 
 function normalizeExtensions(rawExtensions?: unknown): string[] | undefined {
   if (!Array.isArray(rawExtensions)) {
