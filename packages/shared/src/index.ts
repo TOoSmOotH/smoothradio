@@ -26,4 +26,12 @@ export {
   createRecommendationWorker,
 } from './queue.js';
 
-export { parseID3Tags, MP3Metadata } from './mp3-parser.js';
+export { parseID3Tags, extractAlbumArt, MP3Metadata, AlbumArt } from './mp3-parser.js';
+export {
+  AlbumArtCache,
+  CachedArt,
+  ALLOWED_MIME_TYPES,
+  AllowedMimeType,
+  normalizeMimeType,
+  isValidArtworkHash,
+} from './album-art-cache.js';
