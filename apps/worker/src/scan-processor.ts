@@ -109,6 +109,7 @@ async function extractAndCacheArt(buffer: Buffer): Promise<ArtResult | null> {
   const art = extractAlbumArt(buffer);
   if (!art) return null;
   const cached = await albumArtCache.store(art);
+  if (!cached) return null;
   return { hash: cached.hash, mimeType: cached.mimeType };
 }
 
